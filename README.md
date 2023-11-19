@@ -21,7 +21,36 @@ docker run -d \
   -p 3306:3306 \
   mysql:8.0
 ```
-
+## Project structure
+```
+.
+├── README.md
+├── app
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── inventory.py
+│   │   ├── products.py
+│   │   └── sales.py
+│   ├── authentication
+│   │   └── auth.py
+│   ├── database.py
+│   ├── datadog_logging
+│   │   └── logger.py
+│   ├── main.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── inventory.py
+│   │   ├── product.py
+│   │   └── sale.py
+│   └── utils.py
+├── config.ini
+├── config.ini.example
+├── requirements.txt
+├── scripts
+│   └── create_tables_and_populate_data.py
+└── testing
+    └── api_tests.py
+```
 ## Run the server
 1. `cd app && python3 -m uvicorn main:app --reload`
 2. Access the API via `http://localhost:8000`.
@@ -33,6 +62,8 @@ docker run -d \
 - Docker (If you do not want to use docker then install MySQL directly)
 - FastAPI
 - ORMs
+- Datadog
+- Auth0
 - MySQL
 
 ## Database Schema

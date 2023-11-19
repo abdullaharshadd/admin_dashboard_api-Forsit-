@@ -4,6 +4,8 @@ from models.product import ProductDB, Product, ProductCreate, ProductBase
 from database import get_db
 from sqlalchemy.future import select
 from sqlalchemy import update, delete
+from datadog_logging.logger import logInfo, logError  # Import your log functions here
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -14,9 +16,11 @@ async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_
         db.add(new_product)
         await db.commit()
         await db.refresh(new_product)
+        logInfo("Product created successfully", "Product created successfully", "normal")
         return Product(**new_product.__dict__)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logError("Error creating product", str(e), "critical")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/", response_model=list[Product])
 async def get_all_products(
@@ -41,57 +45,61 @@ async def get_all_products(
 
         result = await db.execute(statement)
         products_db = result.scalars().all()
-
+        logInfo("Fetched products succesfully", "Fetched products succesfully", "normal")
         return products_db
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logError("Error fetching products", str(e), "critical")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/{product_id}", response_model=Product)
 async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
     try:
         statement = select(ProductDB).where(ProductDB.id == product_id)
-        result = await db.execute(statement)
-        
-        product_db = result.scalar()
-        
-        if product_db is None:
-            raise HTTPException(status_code=404, detail="Product not found")
+        product_db = await db.execute(statement)
 
-        return product_db
+        product = product_db.scalar()
+
+        if product is None:
+            return JSONResponse(content={"detail": "Product not found"}, status_code=404)
+
+        logInfo("Fetched product successfully", "Fetched product successfully", "normal")
+        return product
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logError("Error fetching product", str(e), "critical")
+        return JSONResponse(content={"detail": "Internal Server Error"}, status_code=500)
 
 @router.put("/{product_id}", response_model=Product)
 async def update_product(product_id: int, product_update: ProductBase, db: AsyncSession = Depends(get_db)):
     try:
-        # Your logic to update the product in the database
         statement = update(ProductDB).where(ProductDB.id == product_id).values(**product_update.dict())
         await db.execute(statement)
         await db.commit()
 
-        # Retrieve the updated product
         updated_product = await db.execute(select(ProductDB).where(ProductDB.id == product_id))
         updated_product_db = updated_product.scalar()
 
         if updated_product_db is None:
             raise HTTPException(status_code=404, detail="Product not found")
 
+        logInfo("updated product succesfully", "updated product succesfully", "normal")
         return updated_product_db
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logError("Error updating product", str(e), "critical")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.delete("/{product_id}", response_model=dict)
 async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
     try:
-        # Check if the product exists before attempting to delete
         existing_product = await db.execute(select(ProductDB).where(ProductDB.id == product_id))
         existing_product_db = existing_product.scalar()
     
         if existing_product_db is None:
             raise HTTPException(status_code=404, detail="Product not found")
-        # Delete the product from the database
+
         statement = delete(ProductDB).where(ProductDB.id == product_id)
         await db.execute(statement)
+        logInfo("Product deleted successfully", "Product deleted successfully", "normal")
         return {"message": "Product deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Product not found or something went wrong")
+        logError("Error deleting product", str(e), "critical")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
